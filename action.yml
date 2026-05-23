@@ -1,0 +1,108 @@
+name: 'Git Mirror'
+description: 'Verified host keys git mirroring.'
+branding:
+  icon: 'copy'
+  color: 'blue'
+
+inputs:
+  target_url:
+    description: 'The SSH URL of the mirror repository (e.g. git@codeberg.org:user/repo.git).'
+    required: true
+  ssh_key:
+    description: 'The private SSH key for the mirror repository.'
+    required: true
+  lfs:
+    description: 'Whether to mirror LFS objects.'
+    required: false
+    default: false
+    type: boolean
+  strict:
+    description: 'Whether to enforce strict host key checking. If false, host keys are still verified if known, but unknown keys are accepted.'
+    required: false
+    default: true
+    type: boolean
+  host_keys:
+    description: 'Additional SSH host keys to trust (in known_hosts format).'
+    required: false
+    default: ''
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Configure SSH
+      shell: bash
+      env:
+        TARGET_URL: ${{ inputs.target_url }}
+        HOST_KEYS: ${{ inputs.host_keys }}
+        STRICT: ${{ inputs.strict }}
+        ACTION_PATH: ${{ github.action_path }}
+      run: |
+        set -eu -o pipefail
+        mkdir -p ~/.ssh
+
+        # Extract host for targeted verification
+        # Handles git@host:path, ssh://git@host:port/path, etc.
+        HOST=$(echo "$TARGET_URL" | sed -E 's|^([^@]+@)?([^:/]+).*|\2|')
+        echo "Detected target host: $HOST"
+
+        # Load all verified host keys
+        cp "${ACTION_PATH}/data/known_hosts" ~/.ssh/known_hosts
+
+        if [[ -n "$HOST_KEYS" ]]; then
+          echo "$HOST_KEYS" >> ~/.ssh/known_hosts
+        fi
+
+        sort -u ~/.ssh/known_hosts -o ~/.ssh/known_hosts
+        chmod 600 ~/.ssh/known_hosts
+
+        # Runtime verification (only for the target host to avoid unrelated failures)
+        if [[ "$STRICT" == "true" ]]; then
+          if grep -q "^$HOST " ~/.ssh/known_hosts; then
+            echo "::group::Verifying Host Keys for $HOST"
+            ACTUAL_KEYS=$(ssh-keyscan -t rsa,ecdsa,ed25519 "$HOST" 2>/dev/null | awk '{print $2,$3}' | sort)
+            HARDCODED_KEYS=$(grep "^$HOST " ~/.ssh/known_hosts | awk '{print $2,$3}' | sort)
+
+            if [[ -n "$ACTUAL_KEYS" && "$ACTUAL_KEYS" != "$HARDCODED_KEYS" ]]; then
+              echo "::error::Host keys for $HOST have changed! Security risk detected."
+              diff <(echo "$HARDCODED_KEYS") <(echo "$ACTUAL_KEYS") || true
+              exit 1
+            fi
+            echo "::endgroup::"
+          else
+            echo "::warning::Host $HOST not found in known_hosts. Strict checking will rely on host_keys input."
+          fi
+        fi
+
+    - name: Mirror Repository
+      shell: bash
+      env:
+        TARGET_URL: ${{ inputs.target_url }}
+        SSH_KEY: ${{ inputs.ssh_key }}
+        LFS: ${{ inputs.lfs }}
+        STRICT: ${{ inputs.strict }}
+      run: |
+        set -eu -o pipefail
+        eval $(ssh-agent -s)
+        ssh-add - <<< "$SSH_KEY"
+
+        if [[ "$STRICT" == "true" ]]; then
+          SSH_OPTS="-o StrictHostKeyChecking=yes"
+        else
+          SSH_OPTS="-o StrictHostKeyChecking=accept-new"
+        fi
+        SSH_OPTS="$SSH_OPTS -o ControlMaster=no -o ControlPath=none -o IdentitiesOnly=yes -o BatchMode=yes"
+        export GIT_SSH_COMMAND="ssh $SSH_OPTS"
+
+        # Add mirror or update url if it already exists for any reason
+        git remote add mirror "$TARGET_URL" 2>/dev/null || git remote set-url mirror "$TARGET_URL"
+
+        git push --force --prune mirror \
+          "refs/remotes/origin/*:refs/heads/*" \
+          "refs/tags/*:refs/tags/*"
+
+        if [[ "$LFS" == "true" ]]; then
+          git lfs push --all mirror
+        fi
+
+
+

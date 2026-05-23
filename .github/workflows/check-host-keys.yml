@@ -1,0 +1,50 @@
+name: Check Host Keys
+
+on:
+  push:
+  workflow_dispatch:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Verify Hardcoded Keys
+        shell: bash
+        run: |
+          DATA_FILE="data/known_hosts"
+          HOSTS=("github.com" "gitlab.com" "bitbucket.org" "codeberg.org" "sourcehut.org")
+
+          FAILED=0
+          for host in "${HOSTS[@]}"; do
+            echo "Checking $host..."
+            # Get actual keys from server
+            ACTUAL_KEYS=$(ssh-keyscan -t rsa,ecdsa,ed25519 "$host" 2>/dev/null | awk '{print $2,$3}' | sort)
+
+            # Get hardcoded keys for this host from the data file
+            HARDCODED_KEYS=$(grep "^$host " "$DATA_FILE" | awk '{print $2,$3}' | sort)
+
+            if [[ -z "$HARDCODED_KEYS" ]]; then
+              echo "::error::Could not find hardcoded keys for $host in $DATA_FILE"
+              FAILED=1
+              continue
+            fi
+
+            if [[ "$ACTUAL_KEYS" != "$HARDCODED_KEYS" ]]; then
+              echo "::error::Host keys for $host do not match the hardcoded keys!"
+              echo "Hardcoded:"
+              echo "$HARDCODED_KEYS"
+              echo "Server returned:"
+              echo "$ACTUAL_KEYS"
+              echo "Please verify that the server keys are valid and up-to-date before updating $DATA_FILE."
+              FAILED=1
+            else
+              echo "OK: $host keys match."
+            fi
+          done
+
+          if [[ $FAILED -eq 1 ]]; then
+            exit 1
+          fi
