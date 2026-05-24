@@ -59,14 +59,21 @@ runs:
         if [[ "$STRICT" == "true" ]]; then
           if grep -q "^$HOST " ~/.ssh/known_hosts; then
             echo "::group::Verifying Host Keys for $HOST"
-            ACTUAL_KEYS=$(ssh-keyscan -t rsa,ecdsa,ed25519 "$HOST" 2>/dev/null | awk '{print $2,$3}' | sort)
-            HARDCODED_KEYS=$(grep "^$HOST " ~/.ssh/known_hosts | awk '{print $2,$3}' | sort)
+            ACTUAL_KEYS=$(ssh-keyscan -t ecdsa,ed25519 "$HOST" 2>/dev/null | grep -v "^#" | awk '{print $2,$3}' | sort -u)
+            HARDCODED_KEYS=$(grep "^$HOST " ~/.ssh/known_hosts | awk '{print $2,$3}' | sort -u)
 
-            if [[ -n "$ACTUAL_KEYS" && "$ACTUAL_KEYS" != "$HARDCODED_KEYS" ]]; then
-              echo "::error::Host keys for $HOST have changed! Security risk detected."
-              diff <(echo "$HARDCODED_KEYS") <(echo "$ACTUAL_KEYS") || true
+            if [[ -z "$ACTUAL_KEYS" ]]; then
+              echo "::error::Could not retrieve any keys for $HOST"
               exit 1
             fi
+
+            # Check if every actual key is in the hardcoded list
+            while read -r key; do
+              if ! grep -qF "$key" <<< "$HARDCODED_KEYS"; then
+                echo "::error::Unverified host key found for $HOST: $key"
+                exit 1
+              fi
+            done <<< "$ACTUAL_KEYS"
             echo "::endgroup::"
           else
             echo "::warning::Host $HOST not found in known_hosts. Strict checking will rely on host_keys input."
@@ -84,14 +91,20 @@ runs:
         set -eu -o pipefail
         eval $(ssh-agent -s)
         ssh-add - <<< "$SSH_KEY"
+# Hardened SSH options
+if [[ "$STRICT" == "true" ]]; then
+  SSH_OPTS="-o StrictHostKeyChecking=yes"
+else
+  SSH_OPTS="-o StrictHostKeyChecking=accept-new"
+fi
 
-        if [[ "$STRICT" == "true" ]]; then
-          SSH_OPTS="-o StrictHostKeyChecking=yes"
-        else
-          SSH_OPTS="-o StrictHostKeyChecking=accept-new"
-        fi
-        SSH_OPTS="$SSH_OPTS -o ControlMaster=no -o ControlPath=none -o IdentitiesOnly=yes -o BatchMode=yes"
-        export GIT_SSH_COMMAND="ssh $SSH_OPTS"
+# Strictly enforce modern algorithms and block RSA
+SSH_OPTS="$SSH_OPTS -o HostKeyAlgorithms=ssh-ed25519,ecdsa-sha2-nistp256"
+SSH_OPTS="$SSH_OPTS -o PubkeyAcceptedAlgorithms=ssh-ed25519,ecdsa-sha2-nistp256"
+
+SSH_OPTS="$SSH_OPTS -o ControlMaster=no -o ControlPath=none -o IdentitiesOnly=yes -o BatchMode=yes"
+export GIT_SSH_COMMAND="ssh $SSH_OPTS"
+
 
         # Add mirror or update url if it already exists for any reason
         git remote add mirror "$TARGET_URL" 2>/dev/null || git remote set-url mirror "$TARGET_URL"

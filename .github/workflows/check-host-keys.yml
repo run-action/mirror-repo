@@ -20,28 +20,29 @@ jobs:
           FAILED=0
           for host in "${HOSTS[@]}"; do
             echo "Checking $host..."
-            # Get actual keys from server
-            ACTUAL_KEYS=$(ssh-keyscan -t rsa,ecdsa,ed25519 "$host" 2>/dev/null | awk '{print $2,$3}' | sort)
+            
+            # Get keys from server (only modern keys)
+            ACTUAL_KEYS=$(ssh-keyscan -t ecdsa,ed25519 "$host" 2>/dev/null | grep -v "^#" | awk '{print $2,$3}' | sort -u)
+            
+            # Get hardcoded keys for this host
+            HARDCODED_KEYS=$(grep "^$host " "$DATA_FILE" | awk '{print $2,$3}' | sort -u)
 
-            # Get hardcoded keys for this host from the data file
-            HARDCODED_KEYS=$(grep "^$host " "$DATA_FILE" | awk '{print $2,$3}' | sort)
-
-            if [[ -z "$HARDCODED_KEYS" ]]; then
-              echo "::error::Could not find hardcoded keys for $host in $DATA_FILE"
+            if [[ -z "$ACTUAL_KEYS" ]]; then
+              echo "::error::Could not retrieve any keys for $host"
               FAILED=1
               continue
             fi
 
-            if [[ "$ACTUAL_KEYS" != "$HARDCODED_KEYS" ]]; then
-              echo "::error::Host keys for $host do not match the hardcoded keys!"
-              echo "Hardcoded:"
-              echo "$HARDCODED_KEYS"
-              echo "Server returned:"
-              echo "$ACTUAL_KEYS"
-              echo "Please verify that the server keys are valid and up-to-date before updating $DATA_FILE."
-              FAILED=1
-            else
-              echo "OK: $host keys match."
+            # Check if every actual key is in the hardcoded list
+            while read -r key; do
+              if ! grep -qF "$key" <<< "$HARDCODED_KEYS"; then
+                echo "::error::Unverified key found for $host: $key"
+                FAILED=1
+              fi
+            done <<< "$ACTUAL_KEYS"
+
+            if [[ $FAILED -eq 0 ]]; then
+              echo "OK: All keys for $host are verified."
             fi
           done
 
