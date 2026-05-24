@@ -11,10 +11,10 @@ GitHub Action to mirror a repository via SSH with verified host keys.
 ## Usage
 
 ```yaml
-- uses: actions/checkout@v4
+- uses: actions/checkout@v6
   with:
     fetch-depth: 0 # Required for a true mirror
-
+```
 - uses: run-action/mirror-repo@v1
   with:
     target_url: "git@codeberg.org:user/repo.git"
