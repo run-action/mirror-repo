@@ -14,13 +14,11 @@ inputs:
   lfs:
     description: 'Whether to mirror LFS objects.'
     required: false
-    default: false
-    type: boolean
+    default: 'false'
   strict:
     description: 'Whether to enforce strict host key checking. If false, host keys are still verified if known, but unknown keys are accepted.'
     required: false
-    default: true
-    type: boolean
+    default: 'true'
   host_keys:
     description: 'Additional SSH host keys to trust (in known_hosts format).'
     required: false
@@ -91,19 +89,19 @@ runs:
         set -eu -o pipefail
         eval $(ssh-agent -s)
         ssh-add - <<< "$SSH_KEY"
-# Hardened SSH options
-if [[ "$STRICT" == "true" ]]; then
-  SSH_OPTS="-o StrictHostKeyChecking=yes"
-else
-  SSH_OPTS="-o StrictHostKeyChecking=accept-new"
-fi
+        # Hardened SSH options
+        if [[ "$STRICT" == "true" ]]; then
+          SSH_OPTS="-o StrictHostKeyChecking=yes"
+        else
+          SSH_OPTS="-o StrictHostKeyChecking=accept-new"
+        fi
 
-# Strictly enforce modern algorithms and block RSA
-SSH_OPTS="$SSH_OPTS -o HostKeyAlgorithms=ssh-ed25519,ecdsa-sha2-nistp256"
-SSH_OPTS="$SSH_OPTS -o PubkeyAcceptedAlgorithms=ssh-ed25519,ecdsa-sha2-nistp256"
+        # Strictly enforce modern algorithms and block RSA
+        SSH_OPTS="$SSH_OPTS -o HostKeyAlgorithms=ssh-ed25519,ecdsa-sha2-nistp256"
+        SSH_OPTS="$SSH_OPTS -o PubkeyAcceptedAlgorithms=ssh-ed25519,ecdsa-sha2-nistp256"
 
-SSH_OPTS="$SSH_OPTS -o ControlMaster=no -o ControlPath=none -o IdentitiesOnly=yes -o BatchMode=yes"
-export GIT_SSH_COMMAND="ssh $SSH_OPTS"
+        SSH_OPTS="$SSH_OPTS -o ControlMaster=no -o ControlPath=none -o BatchMode=yes"
+        export GIT_SSH_COMMAND="ssh $SSH_OPTS"
 
 
         # Add mirror or update url if it already exists for any reason
@@ -116,6 +114,4 @@ export GIT_SSH_COMMAND="ssh $SSH_OPTS"
         if [[ "$LFS" == "true" ]]; then
           git lfs push --all mirror
         fi
-
-
 
