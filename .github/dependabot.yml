@@ -1,12 +1,26 @@
 version: 2
-updates:
-  - package-ecosystem: "github-actions"
-    directory: "/"
+
+multi-ecosystem-groups:
+  dependencies:
     schedule:
       interval: "monthly"
+      day: "monday"
+      time: "07:38"
+      timezone: "UTC"
+
+updates:
+  - package-ecosystem: "nix"
+    directory: "/"
+    patterns:
+      - "*"
+    multi-ecosystem-group: "dependencies"
     commit-message:
       prefix: "deps:"
-    groups:
-      github-actions:
-        patterns:
-          - "*"
+
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    patterns:
+      - "*"
+    multi-ecosystem-group: "dependencies"
+    commit-message:
+      prefix: "deps:"

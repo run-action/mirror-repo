@@ -1,0 +1,43 @@
+name: Dependabot Auto-merge
+
+on:
+  schedule:
+    # First Wednesday after the monthly Monday Dependabot run.
+    - cron: "43 9 3-9 * 3"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  enable:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Enable auto-merge for aged Dependabot PRs
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          cutoff="$(date -u -d "2 days ago" +%s)"
+
+          gh pr list \
+            --repo "$REPO" \
+            --state open \
+            --json number,createdAt,author \
+          | jq -r --argjson cutoff "$cutoff" '
+              .[]
+              | select(.author.login == "dependabot[bot]")
+              | select((.createdAt | fromdateiso8601) <= $cutoff)
+              | .number
+            ' \
+          | while read -r pr; do
+              gh pr merge "$pr" \
+                --repo "$REPO" \
+                --auto \
+                --squash \
+                --delete-branch
+            done

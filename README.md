@@ -14,7 +14,6 @@ GitHub Action to mirror a repository via SSH with verified host keys.
 - uses: actions/checkout@v6
   with:
     fetch-depth: 0 # Required for a true mirror
-```
 - uses: run-action/mirror-repo@v1
   with:
     target_url: "git@codeberg.org:user/repo.git"
@@ -33,4 +32,6 @@ GitHub Action to mirror a repository via SSH with verified host keys.
 
 ## Security
 
-This action prevents MITM attacks by verifying host keys against a list of known-good keys before pushing. Set `strict: false` to allow unknown hosts while still verifying known ones.
+This action prevents MITM attacks by verifying host keys against a list of
+known-good keys before pushing. Set `strict: false` to allow unknown hosts
+while still verifying known ones.

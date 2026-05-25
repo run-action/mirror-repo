@@ -20,10 +20,10 @@ jobs:
           FAILED=0
           for host in "${HOSTS[@]}"; do
             echo "Checking $host..."
-            
+
             # Get keys from server (only modern keys)
             ACTUAL_KEYS=$(ssh-keyscan -t ecdsa,ed25519 "$host" 2>/dev/null | grep -v "^#" | awk '{print $2,$3}' | sort -u)
-            
+
             # Get hardcoded keys for this host
             HARDCODED_KEYS=$(grep "^$host " "$DATA_FILE" | awk '{print $2,$3}' | sort -u)
 
