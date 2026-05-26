@@ -37,7 +37,9 @@ main() {
       if [[ -n "$PARSED_PORT" ]]; then
         scan_args+=(-p "$PARSED_PORT")
       fi
-      actual_keys="$(ssh-keyscan "${scan_args[@]}" "$PARSED_HOST" 2>/dev/null | grep -v "^#" | awk '{print $2,$3}' | sort -u)"
+
+      # Continue on error with ssh-keyscan to print friendlier error message.
+      actual_keys="$({ ssh-keyscan "${scan_args[@]}" "$PARSED_HOST" 2>/dev/null || true; } | awk '$1 !~ /^#/ && NF >= 3 {print $2,$3}' | sort -u)"
 
       if [[ -z "$actual_keys" ]]; then
         echo "::error::Could not retrieve any keys for $PARSED_KNOWN_HOST"

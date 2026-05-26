@@ -2,6 +2,8 @@ version: 2
 
 multi-ecosystem-groups:
   dependencies:
+    commit-message:
+      prefix: "deps:"
     schedule:
       interval: "monthly"
       day: "monday"
@@ -14,13 +16,9 @@ updates:
     patterns:
       - "*"
     multi-ecosystem-group: "dependencies"
-    commit-message:
-      prefix: "deps:"
 
   - package-ecosystem: "github-actions"
     directory: "/"
     patterns:
       - "*"
     multi-ecosystem-group: "dependencies"
-    commit-message:
-      prefix: "deps:"
