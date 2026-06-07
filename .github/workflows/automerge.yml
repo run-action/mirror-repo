@@ -19,7 +19,7 @@ jobs:
       contents: write
       pull-requests: write
     steps:
-      - uses: run-action/automerge@v1
+      - uses: run-action/automerge@6fc2ea88aa5fa753e97db7ae8255233e9a99fa31 # v1
         with:
           cooldown-days: 3
 
