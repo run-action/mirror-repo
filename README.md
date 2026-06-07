@@ -4,8 +4,8 @@ GitHub Action to mirror a repository via SSH with verified host keys.
 
 ## Features
 
-- **True Mirror:** Always mirrors all branches and tags, including deletions and force pushes.
-- **Security:** Hardcoded public keys for major providers. No "Trust on First Use" (TOFU) by default.
+- **True Mirror:** Always mirrors all branches and tags, including **deletions** and **force pushes**.
+- **Security:** Hardcoded public keys for some major providers. No "Trust on First Use" (TOFU) by default.
 - **Pure Shell:** Zero dependencies, no Docker, no JavaScript.
 
 ## Usage
@@ -32,6 +32,7 @@ GitHub Action to mirror a repository via SSH with verified host keys.
 
 ## Security
 
-This action prevents MITM attacks by verifying host keys against a list of
-known-good keys before pushing. Set `strict: false` to allow unknown hosts
+This action guards against MITM attacks by verifying host keys against a list
+of known-good keys before pushing. Set `strict: false` to allow unknown hosts
 while still verifying known ones.
+
