@@ -3,7 +3,8 @@
 
   inputs.nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
 
-  outputs = { nixpkgs, ... }:
+  outputs =
+    { nixpkgs, ... }:
     let
       systems = [
         "aarch64-darwin"
@@ -14,7 +15,8 @@
       forAllSystems = nixpkgs.lib.genAttrs systems;
     in
     {
-      devShells = forAllSystems (system:
+      devShells = forAllSystems (
+        system:
         let
           pkgs = nixpkgs.legacyPackages.${system};
         in
@@ -32,27 +34,33 @@
               echo "Run tests with: make test"
             '';
           };
-        });
+        }
+      );
 
-      checks = forAllSystems (system:
+      checks = forAllSystems (
+        system:
         let
           pkgs = nixpkgs.legacyPackages.${system};
         in
         {
-          bats = pkgs.runCommand "git-mirror-bats" {
-            nativeBuildInputs = with pkgs; [
-              bats
-              git
-              gnumake
-              shellcheck
-              yq-go
-            ];
-          } ''
-            cp -R ${./.} source
-            cd source
-            make test
-            touch $out
-          '';
-        });
+          bats =
+            pkgs.runCommand "git-mirror-bats"
+              {
+                nativeBuildInputs = with pkgs; [
+                  bats
+                  git
+                  gnumake
+                  shellcheck
+                  yq-go
+                ];
+              }
+              ''
+                cp -R ${./.} source
+                cd source
+                make test
+                touch $out
+              '';
+        }
+      );
     };
 }
