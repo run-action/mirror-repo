@@ -1,0 +1,18 @@
+# Repository metadata, synced by probot/settings (https://github.com/apps/settings).
+# Edit via PR; do not change these fields directly in the GitHub UI.
+
+repository:
+  # Description intentionally left empty — the README is the source of truth.
+  description: ""
+  topics:
+    - experimental
+    - github-actions
+    - ssh
+    - mirror
+
+labels:
+  - name: no-auto-merge
+    color: BFD4F2
+    description: >-
+      Exclude this PR from Dependabot auto-merge. The automerge workflow's
+      `skip-labels` input reads this label and leaves the PR for human review.
